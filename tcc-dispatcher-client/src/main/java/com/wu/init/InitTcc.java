@@ -9,6 +9,7 @@ import com.wu.entity.TccExecuteEntity;
 import com.wu.entity.TccMethodEntity;
 import com.wu.enums.TccRoleEnum;
 import com.wu.proxy.RpcClientProxy;
+import com.wu.strategy.ClientNettyMsgHandleStrategyContext;
 import com.wu.untils.WuAopUtils;
 import lombok.SneakyThrows;
 import org.springframework.beans.BeansException;
@@ -26,10 +27,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InitTcc implements BeanPostProcessor {
 
-
     private static final Map<String,Object> SERVICE_PROXY_INSTANCE_MAP = new ConcurrentHashMap<>();
 
     private static final Map<String,Object> SERVICE_INSTANCE_MAP = new ConcurrentHashMap<>();
+
+    private ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext;
+
+    public InitTcc(ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext) {
+        this.clientNettyMsgHandleStrategyContext = clientNettyMsgHandleStrategyContext;
+    }
+
+    public InitTcc() {
+    }
 
     @SneakyThrows
     @Override
@@ -64,7 +73,7 @@ public class InitTcc implements BeanPostProcessor {
                     SERVICE_INSTANCE_MAP.put(clazz.getName()+":"+confirmMethod,tccConfirmMethodEntity);
                     SERVICE_INSTANCE_MAP.put(clazz.getName()+":"+cancelMethod,tccCancelMethodEntity);
 
-                    proxy = RpcClientProxy.createCglibProxy(proxy,method,confirmMethod,cancelMethod);
+                    proxy = RpcClientProxy.createCglibProxy(proxy,method,confirmMethod,cancelMethod,clientNettyMsgHandleStrategyContext);
 
                     TccMethodEntity tccTargetMethodProxyEntity = new TccMethodEntity(method,proxy);
                     TccMethodEntity tccConfirmMethodProxyEntity = new TccMethodEntity(clazz.getMethod(confirmMethod,method.getParameterTypes()),proxy);

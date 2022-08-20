@@ -16,5 +16,14 @@ mybatis-plus:
   type-aliases-package: com.wu
 server:
   port: 8084
-netty:
+tcc-server:
   port: 9001
+  exception-notify:
+    mail:
+      host: smtp.qq.com
+      port: 465
+      ssl-enable: true
+      from: xxx
+      user: xxx
+      pass: xxx
+      to-user: xxx

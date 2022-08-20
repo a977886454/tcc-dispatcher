@@ -1,7 +1,9 @@
 package com.wu.strategy;
 
+import com.wu.config.SpringContextHolder;
 import com.wu.context.TccContextLocal;
 import com.wu.entity.ClientNettyMsg;
+import com.wu.properties.ClientNettyProperties;
 import com.wu.untils.FunctionalUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -23,10 +25,8 @@ import java.util.concurrent.locks.LockSupport;
  * @date 2022/7/28
  */
 public class ClientNettyMsgHandleStrategyContext {
-    @Value("${netty.server.port}")
-    private Integer port;
-    @Value("${netty.server.ips}")
-    private String[] ips;
+
+    private ClientNettyProperties clientNettyProperties = SpringContextHolder.getBean(ClientNettyProperties.class);
 
     public static Channel channel;
 
@@ -39,11 +39,11 @@ public class ClientNettyMsgHandleStrategyContext {
     private Map<String, ClientExecuteTryStrategy> transactionalHandleMap;
 
     public Integer getPort() {
-        return port;
+        return clientNettyProperties.getPort();
     }
 
     public void shuffleIp(){
-        Collections.shuffle(FunctionalUtil.asList(ips));
+        Collections.shuffle(FunctionalUtil.asList(clientNettyProperties.getIps()));
 
     }
 
@@ -55,37 +55,37 @@ public class ClientNettyMsgHandleStrategyContext {
      **/
     public String getIp() {
         int index = CHOOSE_IP.incrementAndGet();
-        if(ips.length <= index){
+        if(clientNettyProperties.getIps().length <= index){
             CHOOSE_IP.set(0);
         }
-        return ips[CHOOSE_IP.get()];
+        return clientNettyProperties.getIps()[CHOOSE_IP.get()];
     }
 
     public void messageProcessing(String beanName, ChannelHandlerContext ctx, ClientNettyMsg clientNettyMsg){
         transactionalHandleMap.get(beanName).handle(ctx,clientNettyMsg);
     }
 
-    public static void sendBuildConnectionMessage(Object msg,String applicationName) throws InterruptedException {
+    public void sendBuildConnectionMessage(Object msg,String applicationName) throws InterruptedException {
         Thread currentThread = Thread.currentThread();
         TccContextLocal.getConcurrentWaitThreadMap().put(applicationName,currentThread);
         channel.writeAndFlush(msg);
         long start = System.currentTimeMillis();
-        LockSupport.parkNanos(currentThread,5000);
+        LockSupport.parkNanos(currentThread,clientNettyProperties.getConnectionTimeout());
         long end = System.currentTimeMillis();
-        if(end-start >= 5000){
+        if(end-start >= clientNettyProperties.getConnectionTimeout()){
             TccContextLocal.getConcurrentWaitThreadMap().remove(applicationName);
             throw new RuntimeException("当前网络阻塞。。。");
         }
     }
 
-    public static void sendMessage(Object msg,String tccId) throws InterruptedException {
+    public void sendMessage(Object msg,String tccId) throws InterruptedException {
         Thread currentThread = Thread.currentThread();
         TccContextLocal.getConcurrentWaitThreadMap().put(tccId,currentThread);
         channel.writeAndFlush(msg);
         long start = System.currentTimeMillis();
-        LockSupport.parkNanos(currentThread,5000);
+        LockSupport.parkNanos(currentThread,clientNettyProperties.getSyncSendTimeout());
         long end = System.currentTimeMillis();
-        if(end-start >= 5000){
+        if(end-start >= clientNettyProperties.getSyncSendTimeout()){
             TccContextLocal.getConcurrentWaitThreadMap().remove(tccId);
             throw new RuntimeException("当前网络阻塞。。。");
         }

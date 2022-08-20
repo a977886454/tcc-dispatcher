@@ -33,7 +33,7 @@ import java.util.Arrays;
  **/
 public class RpcClientProxy {
 
-    public static Object createCglibProxy(Object target, Method targetMethod, String confirmMethod, String cancelMethod) {
+    public static Object createCglibProxy(Object target, Method targetMethod, String confirmMethod, String cancelMethod,ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext) {
 
         Enhancer enhancer = new Enhancer();
         //2、设置父类（目标类）
@@ -70,7 +70,7 @@ public class RpcClientProxy {
                         tccContext.setTccRoleEnum(TccRoleEnum.FEIGN);
                         TccContextLocal.getInstance().set(tccContext);
                         //发送
-                        ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccId);
+                        clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccId);
                     }else {
                         LocalDateTime now = LocalDateTime.now();
                         TccController tccController = new TccController();
@@ -95,7 +95,7 @@ public class RpcClientProxy {
                         TccContextLocal.getInstance().set(tccContext);
 
                         //发送
-                        ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccController.getTccId());
+                        clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccController.getTccId());
                     }
 
                 }
@@ -114,13 +114,13 @@ public class RpcClientProxy {
                             clientNettyMsg.setData(JsonUtils.obj2json(tccParticipator));
                             clientNettyMsg.setOperationType(1);
                             //发送全局提交成功消息
-                            ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccParticipator.getTccId());
+                            clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccParticipator.getTccId());
                         }else {
                             clientNettyMsg.setMsgType(NettyMsgTypeEnum.TCC_SUCCESS.getMsgType());
                             clientNettyMsg.setData(startTccId);
                             clientNettyMsg.setOperationType(3);
                             //发送全局提交成功消息
-                            ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),startTccId);
+                            clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),startTccId);
                         }
 
 
@@ -138,13 +138,13 @@ public class RpcClientProxy {
                             clientNettyMsg.setData(JsonUtils.obj2json(tccParticipator));
                             clientNettyMsg.setOperationType(1);
                             //发送回滚消息
-                            ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccParticipator.getTccId());
+                            clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),tccParticipator.getTccId());
                         }else {
                             clientNettyMsg.setMsgType(NettyMsgTypeEnum.TCC_ROLLBACK.getMsgType());
                             clientNettyMsg.setData(startTccId);
                             clientNettyMsg.setOperationType(4);
                             //发送全局回滚消息
-                            ClientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),startTccId);
+                            clientNettyMsgHandleStrategyContext.sendMessage(JsonUtils.obj2json(clientNettyMsg),startTccId);
                         }
                     }
                     throw e;

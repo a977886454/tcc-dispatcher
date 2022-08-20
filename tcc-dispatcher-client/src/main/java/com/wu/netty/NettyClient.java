@@ -35,9 +35,14 @@ public class NettyClient {
     private volatile Channel channel;
     private Bootstrap bootstrap;
     private NioEventLoopGroup workGroup = new NioEventLoopGroup(4);
+    private ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext;
 
     public NettyClient(String host, int port) {
         start(host, port);
+    }
+
+    public NettyClient(ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext) {
+        this.clientNettyMsgHandleStrategyContext = clientNettyMsgHandleStrategyContext;
     }
 
     public NettyClient() {
@@ -88,7 +93,7 @@ public class NettyClient {
                 ClientNettyMsg clientNettyMsg = new ClientNettyMsg();
                 clientNettyMsg.setMsgType(NettyMsgTypeEnum.BUILD_CONNECTION.getMsgType());
                 clientNettyMsg.setData(SpringContextHolder.getApplicationName());
-                ClientNettyMsgHandleStrategyContext.sendBuildConnectionMessage(JsonUtils.obj2json(clientNettyMsg),SpringContextHolder.getApplicationName());
+                clientNettyMsgHandleStrategyContext.sendBuildConnectionMessage(JsonUtils.obj2json(clientNettyMsg),SpringContextHolder.getApplicationName());
                 log.info("Connect to server successfully!");
             } else {
                 channel = null;

@@ -3,6 +3,7 @@ package com.wu.config;
 import com.wu.init.InitTcc;
 import com.wu.interceptor.FeignInterceptor;
 import com.wu.netty.NettyClient;
+import com.wu.properties.ClientNettyProperties;
 import com.wu.strategy.ClientLocalExecuteTryStrategy;
 import com.wu.strategy.ClientNettyMsgHandleStrategyContext;
 import com.wu.strategy.NotifyWaitSendMsgThreadStrategy;
@@ -22,6 +23,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class Configure {
 
     @Bean
+    public ClientNettyProperties clientNettyProperties(){
+        return new ClientNettyProperties();
+    }
+
+    @Bean
     public ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext(){
         ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext = new ClientNettyMsgHandleStrategyContext();
         clientNettyMsgHandleStrategyContext.shuffleIp();
@@ -34,8 +40,8 @@ public class Configure {
     }
 
     @Bean
-    public InitTcc initTcc(){
-        return new InitTcc();
+    public InitTcc initTcc(ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext){
+        return new InitTcc(clientNettyMsgHandleStrategyContext);
     }
 
     @Bean
@@ -54,8 +60,8 @@ public class Configure {
     }
 
     @Bean
-    public NettyClient nettyClient() throws InterruptedException {
-        NettyClient nettyClient = new NettyClient();
+    public NettyClient nettyClient(ClientNettyMsgHandleStrategyContext clientNettyMsgHandleStrategyContext) throws InterruptedException {
+        NettyClient nettyClient = new NettyClient(clientNettyMsgHandleStrategyContext);
         nettyClient.start(clientNettyMsgHandleStrategyContext().getIp(),clientNettyMsgHandleStrategyContext().getPort());
         while (nettyClient.getChannel() == null){
             Thread.sleep(500);

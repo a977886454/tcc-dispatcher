@@ -30,7 +30,7 @@ public class ClientNettyMsgHandleStrategyContext {
     public static final String SUCCESS = "success";
     public static final String FAIL = "fail";
 
-    @Value("${netty.port}")
+    @Value("${tcc-server.port}")
     private Integer port;
 
     @Resource

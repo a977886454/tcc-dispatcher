@@ -13,8 +13,10 @@ import com.wu.mapper.TccParticipatorMapper;
 import com.wu.strategy.ClientNettyMsgHandleStrategyContext;
 import com.wu.untils.FunctionalUtil;
 import com.wu.untils.JsonUtils;
+import com.wu.utils.EmailUtils;
 import com.wu.utils.RandomUtil;
 import io.netty.channel.ChannelHandlerContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @date 2022/7/29
  */
 public class TryTransactionalSchedule extends AbstractScheduleExecute {
+    private final EmailUtils emailUtils = SpringContextHolder.getBean(EmailUtils.class);
 
     private final TccControllerMapper tccControllerMapper = SpringContextHolder.getBean(TccControllerMapper.class);
 
@@ -47,8 +50,7 @@ public class TryTransactionalSchedule extends AbstractScheduleExecute {
     protected void processTasks() throws InterruptedException {
         List<TccController> tccControllers = tccControllerMapper.selectList(new LambdaQueryWrapper<TccController>()
                 .lt(TccController::getRetriedCount, TccServerConstant.maxRetryCount)
-                .lt(TccController::getLastTime, LocalDateTime.now())
-                .ne(TccController::getStatus,0));
+                .lt(TccController::getLastTime, LocalDateTime.now()));
 
         List<TccParticipator> tccParticipators = tccParticipatorMapper.selectList(new LambdaQueryWrapper<TccParticipator>()
                 .lt(TccParticipator::getRetriedCount, TccServerConstant.maxRetryCount)
@@ -58,6 +60,7 @@ public class TryTransactionalSchedule extends AbstractScheduleExecute {
 
         Map<String, List<TccParticipator>> tccParticipatorMap = FunctionalUtil.simpleGroupingBy(tccParticipators, TccParticipator::getTccId);
         if(!CollectionUtils.isEmpty(tccControllers)){
+            EMPTY_DATA_COUNT.set(0);
             for (TccController tccController : tccControllers) {
 
                 List<TccParticipator> tempTccParticipators = tccParticipatorMap.get(tccController.getTccId());
@@ -100,21 +103,33 @@ public class TryTransactionalSchedule extends AbstractScheduleExecute {
                     }
 
                 }else {
+                    boolean isContinue = false;
                     for (TccParticipator tempTccParticipator : tempTccParticipators) {
+                        if(tccController.getStatus() == 0){
+                            if(tempTccParticipator.getStatus() == 2){
+                                TccController updateTccController = new TccController();
+                                updateTccController.setStatus(2);
+                                updateTccController.setTccId(tccController.getTccId());
+                                tccControllerMapper.updateById(updateTccController);
+                                isContinue = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if(isContinue) continue;
+
+                    for (TccParticipator tempTccParticipator : tempTccParticipators) {
+                        if(tccController.getStatus() == 0){
+                            // TODO 事务发起者服务提交完本地try事务，然后突然宕机就会出现这种server未知事务状态情况，这里可以判断参与者是否失败然后发起回调查看对应该业务是否成功
+                            emailUtils.send("tcc事务链路异常，需人工处理","tccId="+tccController.getTccId());
+                            break;
+                        }
+
                         ChannelHandlerContext channelHandlerContext = clientNettyMsgHandleStrategyContext.get(tempTccParticipator.getApplicationName());
                         alreadyMap.put(tempTccParticipator.getId(),tempTccParticipator.getId());
                         if(channelHandlerContext != null){
-                            if(tccController.getStatus() == 0){
-                                if(tempTccParticipator.getStatus() == 2){
-                                    TccController updateTccController = new TccController();
-                                    updateTccController.setStatus(2);
-                                    updateTccController.setTccId(tccController.getTccId());
-                                    tccControllerMapper.updateById(updateTccController);
-                                }
-
-                                // TODO 事务发起者服务提交完本地try事务，然后突然宕机就会出现这种server未知事务状态情况，这里可以判断参与者是否失败然后发起回调查看对应该业务是否成功
-
-                            }else if(tccController.getStatus() == 1){
+                            if(tccController.getStatus() == 1){
                                 TccExecuteEntity tccExecuteEntity = new TccExecuteEntity();
                                 tccExecuteEntity.setTccId(tccController.getTccId());
                                 tccExecuteEntity.setTargetClass(tempTccParticipator.getTargetClass());
